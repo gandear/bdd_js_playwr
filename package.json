@@ -1,0 +1,37 @@
+{
+  "name": "bdd_july8",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "bddgen:clean": "rimraf .features-gen && npx bddgen",
+    "debug:ui": "npm run bddgen:clean && npx playwright test --project=\"OrangeHRM UI Tests\"",
+    "debug:all": "npm run bddgen:clean && npx playwright test --headed",
+    "bddgen": "npx bddgen",
+    "test:ui": "npx playwright test --project=\"OrangeHRM UI Tests\"",
+    "report:ui": "npx playwright show-report reports/playwright-report",
+    "test:api": "npx playwright test --project=\"OrangeHRM API Tests\"",
+    "report:api": "npx playwright show-report reports/playwright-report",
+    "test:ui:report": "npm run test:ui && npm run report:ui",
+    "test:api:report": "npm run test:api && npm run report:api"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "allure-playwright": "^3.3.0",
+    "playwright-bdd": "^8.3.1",
+    "rimraf": "^6.0.1"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.54.0",
+    "dotenv": "^17.1.0",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0"
+  }
+}

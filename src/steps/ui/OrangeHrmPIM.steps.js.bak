@@ -1,0 +1,129 @@
+import { logStep, logAssertion } from '../../utils/customLoggerMethods.js.bak';
+import { createBdd } from 'playwright-bdd';
+import { test } from '../../fixtures/page.fixture.js';
+import { expect } from '@playwright/test';
+
+const { Given, When, Then } = createBdd(test);
+
+Given('I am in the PIM module', async ({ dashboardPage, pimPage, logger }) => {
+  await dashboardPage.navigateToPIM();
+  logStep(logger, 'Navigating to PIM page');
+  expect.soft(pimPage.pimHeader).toBeVisible();
+  logAssertion(logger, 'PIM module header is visible', await pimPage.pimHeader.isVisible());
+});
+
+Given('I am in the PIM module and there are employees visible in the results table', async ({ dashboardPage, pimPage, logger }) => {
+  logStep(logger, 'Navigating to PIM module and verify employee data is visible');
+
+  await dashboardPage.navigateToPIM();
+  await pimPage.pimHeader.waitFor({ state: 'visible' });
+  await pimPage.resultsTableGrid.waitFor({ state: 'visible' });
+
+  expect.soft(pimPage.tableBodyRows.first()).toBeVisible({ timeout: 15000 });
+  expect.soft(pimPage.recordsFoundMessage).toBeVisible();
+
+  const employeesVisible = await pimPage.areEmployeesVisibleInTable();
+  logAssertion(logger, `Employees visible in results table`, employeesVisible);
+  expect.soft(employeesVisible).toBeTruthy();
+});
+
+When('I add employee with First Name {string}, Middle Name {string}, Last Name {string}', async ({ pimPage, logger }, firstName, middleName, lastName) => {
+  logStep(logger, `Adding employee: ${firstName} ${middleName ? middleName + ' ' : ''}${lastName}`);
+
+  await pimPage.clickAddEmployee();
+  await pimPage.addEmployee(firstName, middleName, lastName);
+
+  logStep(logger, 'Employee add process initiated');
+});
+
+When('I pick a random employee name from the table and search for it', async function ({ pimPage, logger }) {
+  logStep(logger, 'Picking random employee from table and searching');
+
+  await pimPage.resultsTableGrid.waitFor({ state: 'visible' });
+  // Aserțiune hard: trebuie să existe rânduri pentru a putea alege un angajat.
+  await expect(pimPage.tableBodyRows.first()).toBeVisible({ timeout: 15000 });
+
+  this.pickedEmployeeDetails = await pimPage.pickRandomEmployeeDetails();
+  logStep(logger, `Picked employee details: ${JSON.stringify(this.pickedEmployeeDetails)}`);
+
+  await pimPage.searchEmployee(this.pickedEmployeeDetails.firstName);
+  logStep(logger, `Searching for employee: ${this.pickedEmployeeDetails.firstName}`);
+});
+
+When('I search for employee {string}', async ({ pimPage, logger }, employeeName) => {
+  logStep(logger, `Searching for employee: ${employeeName}`);
+
+  await pimPage.searchEmployee(employeeName);
+  logStep(logger, 'Employee search submitted');
+});
+
+Then('I should see a success message {string}', async ({ pimPage, logger }, expectedMessage) => {
+  logStep(logger, `Verifying success message: "${expectedMessage}"`);
+
+  const actualMessage = await pimPage.getSuccessMessage();
+  expect.soft(actualMessage).toContain(expectedMessage);
+
+  const messageMatches = actualMessage.includes(expectedMessage);
+  logAssertion(logger, `Success message matches expected`, messageMatches, {
+    expected: expectedMessage,
+    actual: actualMessage
+  });
+});
+
+Then('I should see the message {string}', async ({ pimPage, logger }, expectedMessage) => {
+  logStep(logger, `Verifying message: "${expectedMessage}"`);
+
+  expect.soft(pimPage.recordsFoundMessage).toBeVisible();
+  expect.soft(pimPage.recordsFoundMessage).toHaveText(expectedMessage);
+
+  // FIX: Adăugăm o verificare că nu există rânduri în tabel atunci când se așteaptă "No Records Found"
+  if (expectedMessage.includes("No Records Found")) {
+    const hasRows = await pimPage.tableBodyRows.count();
+    expect.soft(hasRows).toBe(0);
+    logAssertion(logger, `No employee rows found in table`, hasRows === 0);
+  }
+
+  logStep(logger, `Message '${expectedMessage}' found and verified`);
+});
+
+Then('the picked employee should be visible in the results table', async function ({ pimPage, logger }) {
+  logStep(logger, 'Verifying picked employee appears in results table');
+
+  await pimPage.recordsFoundMessage.waitFor({ state: 'visible', timeout: 15000 });
+  await pimPage.resultsTableGrid.waitFor({ state: 'visible', timeout: 15000 });
+
+  expect.soft(await pimPage.areEmployeesVisibleInTable()).toBeTruthy();
+  logAssertion(logger, 'Employees are visible in table', await pimPage.areEmployeesVisibleInTable());
+
+  const expectedFirstName = this.pickedEmployeeDetails.firstName.trim();
+  const expectedLastName = this.pickedEmployeeDetails.lastName.trim();
+
+  const allRows = await pimPage.tableBodyRows.all();
+  let foundEmployee = false;
+
+  for (const row of allRows) {
+    expect.soft(row).toBeVisible();
+
+    const firstNameCell = row.locator('div[role="cell"]').nth(2);
+    const lastNameCell = row.locator('div[role="cell"]').nth(3);
+
+    // FIX: Așteptăm explicit ca celulele să devină vizibile cu un timeout mai mare
+    await firstNameCell.waitFor({ state: 'visible', timeout: 10000 });
+    await lastNameCell.waitFor({ state: 'visible', timeout: 10000 });
+
+    expect.soft(firstNameCell).toBeVisible();
+    expect.soft(lastNameCell).toBeVisible();
+
+    const actualFirstName = await firstNameCell.textContent();
+    const actualLastName = await lastNameCell.textContent();
+
+    if (actualFirstName.trim() === expectedFirstName && actualLastName.trim() === expectedLastName) {
+      foundEmployee = true;
+      logStep(logger, `Picked employee found in table: ${expectedFirstName} ${expectedLastName}`);
+      break;
+    }
+  }
+
+  expect(foundEmployee, `Employee ${expectedFirstName} ${expectedLastName} not found in the results table.`).toBe(true);
+  logAssertion(logger, `Employee ${expectedFirstName} ${expectedLastName} found in the results table`, foundEmployee);
+});

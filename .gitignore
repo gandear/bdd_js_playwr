@@ -1,0 +1,22 @@
+# Node
+node_modules/
+
+# Env files
+.env                # keep out of Git
+
+# BDDgen artifacts
+.features-gen/      # generated .feature.spec.js files
+
+# Test output
+allure-results/
+reports/
+logs/
+test-results/
+
+# IDE + OS
+.vscode/
+.idea/
+.DS_Store
+
+# Misc
+*.log

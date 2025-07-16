@@ -1,0 +1,99 @@
+import { logStep, logPage, logAssertion } from '../../utils/customLoggerMethods.js.bak';
+import { createBdd } from 'playwright-bdd';
+import { test } from '../../fixtures/page.fixture.js';
+import { expect } from '@playwright/test';
+
+const { Given, When, Then } = createBdd(test);
+
+Given('I am on the OrangeHRM login page', async ({ loginPage, logger }) => {
+  logPage(logger, 'OrangeHRM Login', 'Navigating to login page', { url: '/web/index.php/auth/login' });
+  await loginPage.goto(); // POM's goto includes a critical expect.
+  logAssertion(logger, 'Login page loaded and panel visible', true); // Logăm succesul verificării critice
+});
+
+When('I log in as {string} with password {string}', async ({ loginPage, logger }, username, password) => {
+  logStep(logger, `Attempting login with user: ${username}`);
+  await loginPage.login(username, password);
+  logStep(logger, `Login form submitted successfully for username: ${username}`);
+});
+
+When('I attempt to log in as {string} with password {string}', async ({ loginPage, logger }, username, password) => {
+  const user = username === '' ? null : username;
+  const pass = password === '' ? null : password;
+
+  logStep(logger, `Attempting login with potentially invalid credentials. Username: ${user ?? '[EMPTY]'}, Has password: ${!!pass}`);
+  await loginPage.login(user, pass);
+  logStep(logger, 'Login attempt submitted with possibly empty credentials');
+});
+
+Then('I should be logged in successfully and redirected to the dashboard', async ({ dashboardPage, logger }) => {
+  logStep(logger, 'Verifying successful login and dashboard redirect');
+
+  // FIX: Aserțiune HARD pentru elementul critic al dashboard-ului.
+  // Ne asigurăm că dashboard-ul este vizibil și gata înainte de a continua cu alte verificări.
+  await expect(dashboardPage.dashboardHeader).toBeVisible();
+  logAssertion(logger, 'Dashboard header is visible (Critical Check)', true);
+
+  // Acum, poți folosi soft assertions pentru elemente ADIȚIONALE,
+  // care nu sunt critice pentru starea de bază a paginii.
+  expect.soft(dashboardPage.pimMenuItem).toBeVisible();
+  logAssertion(logger, 'PIM menu item visibility', await dashboardPage.pimMenuItem.isVisible(), { element: 'PIM Menu Item' });
+
+  // Poți adăuga și alte aserțiuni soft aici dacă e cazul
+});
+
+Then('I should see an error message {string}', async ({ loginPage, logger }, expectedMessage) => {
+  logStep(logger, `Verifying error message: "${expectedMessage}"`);
+
+  switch (expectedMessage) {
+    case "Required": {
+      const usernameEmpty = (await loginPage.usernameInput.inputValue()) === '';
+      const passwordEmpty = (await loginPage.passwordInput.inputValue()) === '';
+
+      logPage(logger, 'Login Page', 'Field validation status', { usernameEmpty, passwordEmpty });
+
+      if (usernameEmpty && passwordEmpty) {
+        expect.soft(loginPage.usernameRequiredMessage).toBeVisible();
+        expect.soft(loginPage.usernameRequiredMessage).toHaveText('Required');
+        expect.soft(loginPage.passwordRequiredMessage).toBeVisible();
+        expect.soft(loginPage.passwordRequiredMessage).toHaveText('Required');
+        logAssertion(logger, 'Both username and password required messages displayed', true);
+      } else if (usernameEmpty) {
+        expect.soft(loginPage.usernameRequiredMessage).toBeVisible();
+        expect.soft(loginPage.usernameRequiredMessage).toHaveText('Required');
+        expect.soft(loginPage.passwordRequiredMessage).not.toBeVisible();
+        logAssertion(logger, 'Username required message displayed', true);
+      } else if (passwordEmpty) {
+        expect.soft(loginPage.passwordRequiredMessage).toBeVisible();
+        expect.soft(loginPage.passwordRequiredMessage).toHaveText('Required');
+        expect.soft(loginPage.usernameRequiredMessage).not.toBeVisible();
+        logAssertion(logger, 'Password required message displayed', true);
+      } else {
+        const errorMsg = `Expected "Required" message(s), but neither field was empty.`;
+        logAssertion(logger, 'Required message validation', false, { error: errorMsg });
+        expect.soft(false, errorMsg).toBe(true);
+      }
+
+      expect.soft(loginPage.generalErrorMessage).not.toBeVisible();
+      break;
+    }
+
+    case "Invalid credentials": {
+      // FIX: Așteaptă explicit mesajul general de eroare să devină vizibil
+      await loginPage.generalErrorMessage.waitFor({ state: 'visible', timeout: 5000 });
+
+      expect.soft(loginPage.generalErrorMessage).toBeVisible();
+      expect.soft(loginPage.generalErrorMessage).toHaveText(expectedMessage);
+      expect.soft(loginPage.usernameRequiredMessage).not.toBeVisible();
+      expect.soft(loginPage.passwordRequiredMessage).not.toBeVisible();
+      logAssertion(logger, 'Invalid credentials message displayed correctly', true);
+      break;
+    }
+
+    default: {
+      const errorMsg = `Unhandled expected error message type: "${expectedMessage}". Available types: ['Required', 'Invalid credentials']`;
+      logAssertion(logger, 'Unhandled error message type', false, { error: errorMsg });
+      throw new Error(errorMsg);
+    }
+  }
+});
