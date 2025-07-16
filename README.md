@@ -1,7 +1,5 @@
 # BDD Playwright Project Documentation
 
-## 1. README.md
-
 ### OrangeHRM BDD Test Automation
 
 BDD test framework using Playwright and Cucumber for the OrangeHRM application.
@@ -25,8 +23,6 @@ npm run test:api
 - `reports/` – Test reports
 
 ---
-
-## 2. SETUP.md
 
 ### Initial Configuration
 
@@ -68,8 +64,6 @@ npm run debug:all
 
 ---
 
-## 3. TESTING.md
-
 ### BDD Test Structure
 
 #### Feature Files
@@ -109,8 +103,6 @@ src/steps/
 - `api.fixture.js` – API clients
 
 ---
-
-## 4. API.md
 
 ### Functions and Helpers
 
@@ -158,8 +150,6 @@ const logger = winston.createLogger({
 
 ---
 
-## 5. DEPLOYMENT.md
-
 ### CI/CD Configuration
 
 #### Available Scripts
@@ -192,8 +182,6 @@ npm run report:api     # API report
 - **Test Results**: `reports/test-results/`
 
 ---
-
-## 6. TROUBLESHOOTING.md
 
 ### Common Issues
 
